@@ -1,12 +1,29 @@
 <?php
 /*
 Plugin Name: Recent Comments Widget Microdata
-Plugin URI: http://isabelcastillo.com/
+Plugin URI: http://isabelcastillo.com/free-plugins/recent-comments-widget-microdata
 Description: WordPress widget just like the regular WP Recent Comments, but with schema.org microdata.
 Version: 0.2
 Author: Isabel Castillo
 Author URI: http://isabelcastillo.com
 License: GPL2
+
+Copyright 2014 Isabel Castillo
+
+This file is part of Recent Comments Widget Microdata.
+
+Recent Comments Widget Microdata is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+any later version.
+
+Recent Comments Widget Microdata is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Recent Comments Widget Microdata. If not, see <http://www.gnu.org/licenses/>.
 */
 
 class Recent_Comments_Widget_Microdata_Plugin {
