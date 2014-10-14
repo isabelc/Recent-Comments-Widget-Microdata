@@ -28,7 +28,7 @@ class Recent_Comments_Widget_Microdata_Plugin {
 	function register_widget() {
 		register_widget( 'Recent_Comments_Microdata' );
 	}
-	
+
 	/* add itemprop=creator microdata to comments author
 	 * original was $return = "<a href='$url' rel='external nofollow' class='url'>$author</a>";
 	 */
