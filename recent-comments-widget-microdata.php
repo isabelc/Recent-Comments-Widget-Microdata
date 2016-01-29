@@ -3,12 +3,11 @@
 Plugin Name: Recent Comments Widget Microdata
 Plugin URI: http://isabelcastillo.com/free-plugins/recent-comments-widget-microdata
 Description: WordPress widget just like the regular WP Recent Comments, but with schema.org microdata.
-Version: 0.3
+Version: 0.4-beta11
 Author: Isabel Castillo
 Author URI: http://isabelcastillo.com
 License: GPL2
 */
-
 class Recent_Comments_Widget_Microdata_Plugin {
 
 	private static $instance = null;
@@ -22,20 +21,10 @@ class Recent_Comments_Widget_Microdata_Plugin {
 
 	private function __construct() {
 		add_action( 'widgets_init', array( $this, 'register_widget' ) );
-		add_filter( 'get_comment_author_link', array( $this, 'isa_comment_author_link' ) );
 	}
 	
 	function register_widget() {
 		register_widget( 'Recent_Comments_Microdata' );
-	}
-
-	/* add itemprop=creator microdata to comments author
-	 * original was $return = "<a href='$url' rel='external nofollow' class='url'>$author</a>";
-	 */
-	function isa_comment_author_link($author_link) {
-		global $post;
-		$author = get_comment_author();
-		return "<span itemprop='creator' itemscope itemtype='http://schema.org/Person'><span itemprop='name'>$author</span></span>";
 	}
 }
 
@@ -49,33 +38,12 @@ class Recent_Comments_Microdata extends WP_Widget {
 		$widget_ops = array('classname' => 'widget_recent_comments_microdata', 'description' => __( 'Your site&#8217;s most recent comments.' ) );
 		parent::__construct('recent-comments-microdata', __('Recent Comments with Microdata'), $widget_ops);
 		$this->alt_option_name = 'widget_recent_comments_microdata';
-		add_action( 'comment_post', array($this, 'flush_widget_cache') );
-		add_action( 'edit_comment', array($this, 'flush_widget_cache') );
-		add_action( 'transition_comment_status', array($this, 'flush_widget_cache') );
-	}
-
-	function flush_widget_cache() {
-		wp_cache_delete('widget_recent_comments_microdata', 'widget');
 	}
 
 	function widget( $args, $instance ) {
-		global $comments, $comment;
-
-		$cache = array();
-		if ( ! $this->is_preview() ) {
-			$cache = wp_cache_get('widget_recent_comments_microdata', 'widget');
-		}
-		if ( ! is_array( $cache ) ) {
-			$cache = array();
-		}
 
 		if ( ! isset( $args['widget_id'] ) )
-			$args['widget_id'] = $this->id;
-
-		if ( isset( $cache[ $args['widget_id'] ] ) ) {
-			echo $cache[ $args['widget_id'] ];
-			return;
-		}
+				$args['widget_id'] = $this->id;
 
 		$output = '';
 
@@ -94,45 +62,60 @@ class Recent_Comments_Microdata extends WP_Widget {
 			$output .= $args['before_title'] . $title . $args['after_title'];
 		}
 		$output .= '<ul id="recentcomments">';
-		if ( $comments ) {
+		if ( is_array( $comments ) && $comments ) {
 			// Prime cache for associated posts. (Prime post term cache if we need it for permalinks.)
 			$post_ids = array_unique( wp_list_pluck( $comments, 'comment_post_ID' ) );
 			_prime_post_caches( $post_ids, strpos( get_option( 'permalink_structure' ), '%category%' ), false );
-			foreach ( (array) $comments as $comment) {
-				$output .=  '<li class="recentcomments"  itemprop="comment" itemscope itemtype="http://schema.org/Comment">' . /* translators: comments widget: 1: comment author, 2: post link */ sprintf(_x('%1$s on %2$s', 'widgets'), get_comment_author_link(), '<span itemprop="about" itemscope itemtype="http://schema.org/BlogPosting"><a href="' . esc_url( get_comment_link($comment->comment_ID) ) . '" itemprop="discussionUrl"><span itemprop="name">' . get_the_title($comment->comment_post_ID) . '</span></a></span>') . '</li>';
+
+			foreach ( (array) $comments as $comment ) {
+
+				$comment_post = get_post( $comment->comment_post_ID );
+
+				$output .=  '<li class="recentcomments"  itemprop="comment" itemscope itemtype="http://schema.org/Comment">';
+
+				/* translators: comments widget: 1: comment author, 2: post link */
+
+				$output .= sprintf( _x( '%1$s on %2$s', 'widgets' ),
+					'<span class="comment-author-link" itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">' .  $comment->comment_author . '</span></span>',
+					'<span itemprop="about" itemscope itemtype="http://schema.org/TechArticle"><a href="' . esc_url( get_comment_link( $comment ) ) . '" itemprop="discussionUrl"><span itemprop="headline">' . $comment_post->post_title . '</span></a>'// closing </span> is below
+				);
+				/************************************************************
+				*
+				* @todo 
+
+				Missing image microdata. Required for AMP.
+
+				*
+				************************************************************/
+				$output .= '<meta itemscope itemprop="mainEntityOfPage" itemType="https://schema.org/WebPage" itemid="' . get_permalink( $comment_post->ID ) . '" /><span itemprop="author" itemscope itemtype="https://schema.org/Person"><meta itemprop="name" content="' . $comment_post->post_author . '"></span><span itemprop="publisher" itemscope itemtype="https://schema.org/Organization"><meta itemprop="name" content="Isabel Castillo"><span itemprop="logo" itemscope itemtype="https://schema.org/ImageObject"><meta itemprop="url" content="' . get_template_directory_uri() . '/isa_framework_images/logo-60.png"><meta itemprop="width" content="500"><meta itemprop="height" content="60"></span></span><meta itemprop="datePublished" content="' . $comment_post->post_date . '"><meta itemprop="dateModified" content="' . $comment_post->post_modified . '"/>';
+
+				$output .= '</span>';
+				$output .= '</li>';
+
 			}
 		}
 		$output .= '</ul>';
 		$output .= $args['after_widget'];
 		echo $output;
-		if ( ! $this->is_preview() ) {
-			$cache[ $args['widget_id'] ] = $output;
-			wp_cache_set( 'widget_recent_comments_microdata', $cache, 'widget' );
-		}
+
 	}
 
 	function update( $new_instance, $old_instance ) {
 		$instance = $old_instance;
-		$instance['title'] = strip_tags($new_instance['title']);
+		$instance['title'] = sanitize_text_field( $new_instance['title'] );
 		$instance['number'] = absint( $new_instance['number'] );
-		$this->flush_widget_cache();
-
-		$alloptions = wp_cache_get( 'alloptions', 'options' );
-		if ( isset($alloptions['widget_recent_comments_microdata']) )
-			delete_option('widget_recent_comments_microdata');
-
 		return $instance;
 	}
 
 	function form( $instance ) {
-		$title  = isset( $instance['title'] ) ? esc_attr( $instance['title'] ) : '';
+		$title  = isset( $instance['title'] ) ? $instance['title'] : '';
 		$number = isset( $instance['number'] ) ? absint( $instance['number'] ) : 5;
 ?>
 		<p><label for="<?php echo $this->get_field_id( 'title' ); ?>"><?php _e( 'Title:' ); ?></label>
 		<input class="widefat" id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" type="text" value="<?php echo $title; ?>" /></p>
 
 		<p><label for="<?php echo $this->get_field_id( 'number' ); ?>"><?php _e( 'Number of comments to show:' ); ?></label>
-		<input id="<?php echo $this->get_field_id( 'number' ); ?>" name="<?php echo $this->get_field_name( 'number' ); ?>" type="text" value="<?php echo $number; ?>" size="3" /></p>
+		<input class="tiny-text" id="<?php echo $this->get_field_id( 'number' ); ?>" name="<?php echo $this->get_field_name( 'number' ); ?>" type="number" step="1" min="1" value="<?php echo $number; ?>" size="3" /></p>
 <?php
 	}
 	
